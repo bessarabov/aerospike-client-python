@@ -531,3 +531,4 @@ jobs:
         password: ${{ secrets.JFROG_ACCESS_TOKEN }}
         packages-dir: artifacts/
         verbose: true
+        skip-existing: true
