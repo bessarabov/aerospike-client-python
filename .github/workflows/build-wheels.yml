@@ -205,7 +205,8 @@ jobs:
           yum install python-setuptools -y
         CIBW_ARCHS: "${{ matrix.platform }}"
         CIBW_TEST_COMMAND: ${{ env.TEST_COMMAND }}
-        CIBW_FREE_THREADED_SUPPORT: 
+        CIBW_PRERELEASE_PYTHONS: True
+        CIBW_FREE_THREADED_SUPPORT: ${{ matrix.free-threaded }}
 
     - name: Upload wheels to GitHub
       uses: actions/upload-artifact@v4
@@ -293,6 +294,7 @@ jobs:
         CIBW_ENVIRONMENT: SSL_LIB_PATH="$(brew --prefix openssl@1.1)/lib/" CPATH="$(brew --prefix openssl@1.1)/include/" STATIC_SSL=1
         CIBW_ARCHS: "x86_64"
         CIBW_TEST_COMMAND: ${{ env.TEST_COMMAND }}
+        CIBW_PRERELEASE_PYTHONS: True
 
     - name: Save macOS wheel
       uses: actions/upload-artifact@v4
