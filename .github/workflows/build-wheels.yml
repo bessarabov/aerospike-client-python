@@ -136,12 +136,22 @@ jobs:
           "cp39",
           "cp310",
           "cp311",
-          "cp312"
+          "cp312",
+          "cp313"
         ]
         platform: [
           "x86_64",
           "aarch64"
         ]
+        free-threaded: [
+          false,
+          true
+        ]
+        exclude:
+          - free-threaded: true
+        include:
+          - free-threaded: true
+            python: cp313
 
     steps:
     - name: Show job status for commit
@@ -195,6 +205,7 @@ jobs:
           yum install python-setuptools -y
         CIBW_ARCHS: "${{ matrix.platform }}"
         CIBW_TEST_COMMAND: ${{ env.TEST_COMMAND }}
+        CIBW_FREE_THREADED_SUPPORT: 
 
     - name: Upload wheels to GitHub
       uses: actions/upload-artifact@v4
@@ -220,7 +231,8 @@ jobs:
           "cp39",
           "cp310",
           "cp311",
-          "cp312"
+          "cp312",
+          "cp313"
         ]
     runs-on: macos-12-large
     steps:
