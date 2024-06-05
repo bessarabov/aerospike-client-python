@@ -143,15 +143,6 @@ jobs:
           "x86_64",
           "aarch64"
         ]
-        free-threaded: [
-          false,
-          true
-        ]
-        exclude:
-          - free-threaded: true
-        include:
-          - free-threaded: true
-            python: cp313
 
     steps:
     - name: Show job status for commit
@@ -206,7 +197,6 @@ jobs:
         CIBW_ARCHS: "${{ matrix.platform }}"
         CIBW_TEST_COMMAND: ${{ env.TEST_COMMAND }}
         CIBW_PRERELEASE_PYTHONS: True
-        CIBW_FREE_THREADED_SUPPORT: ${{ matrix.free-threaded }}
 
     - name: Upload wheels to GitHub
       uses: actions/upload-artifact@v4
