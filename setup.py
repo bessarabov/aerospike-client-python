@@ -20,7 +20,7 @@ import os
 import platform
 import sys
 from subprocess import Popen
-from subprocess import call
+from subprocess import call, run
 from setuptools import setup, Extension
 from distutils.command.build import build
 from distutils.command.clean import clean
@@ -28,6 +28,7 @@ from multiprocessing import cpu_count
 import time
 import io
 import xml.etree.ElementTree as ET
+import glob
 
 ################################################################################
 # ENVIRONMENT VARIABLES
@@ -51,6 +52,12 @@ SSL_LIB_PATH = os.getenv('SSL_LIB_PATH')
 # COVERAGE environment variable only meant for CI/CD workflow to generate C coverage data
 # Not for developers to use, unless you know what the workflow is doing!
 COVERAGE = os.getenv('COVERAGE')
+
+# Applies no optimizations on both the C client and Python client
+UNOPTIMIZED = os.getenv('UNOPTIMIZED')
+
+# Include debug information on macOS (not included by default)
+INCLUDE_DSYM = os.getenv('INCLUDE_DSYM')
 
 ################################################################################
 # GENERIC BUILD SETTINGS
@@ -107,13 +114,8 @@ if COVERAGE:
     extra_compile_args.append('-ftest-coverage')
     extra_link_args.append('-lgcov')
 
-# TODO: this conflicts with the C client's DEBUG mode when building it
-# DEBUG = os.getenv('DEBUG')
-# if DEBUG:
-#     extra_compile_args.append("-O0")
-# else:
-#     # Release build
-#     extra_compile_args.append("-O1")
+if UNOPTIMIZED:
+    extra_compile_args.append('-O0')
 
 ################################################################################
 # STATIC SSL LINKING BUILD SETTINGS
@@ -228,6 +230,8 @@ class CClientBuild(build):
                 'make',
                 'V=' + str(self.verbose),
             ]
+            if UNOPTIMIZED:
+                cmd.append('O=0')
 
         def compile():
             print(cmd, library_dirs, libraries)
@@ -237,6 +241,24 @@ class CClientBuild(build):
         # run original c-extension build code
         build.run(self)
 
+        # For debugging in macOS, we need to generate and include the debug info for the CPython
+        # extension in the wheel, since this isn't done automatically
+        if DARWIN and INCLUDE_DSYM:
+            print("Generating debug information on macOS")
+            shared_library_paths = glob.glob(pathname="**/aerospike*.so", recursive=True)
+
+            # Sanity check
+            print(f"List of shared libraries: {shared_library_paths}")
+            if len(shared_library_paths) > 1:
+                print("error: only one shared library should be present.", file=sys.stderr)
+                exit(1)
+
+            shared_library_path = shared_library_paths[0]
+            run(["dsymutil", shared_library_path], check=True)
+
+            dsym_path = f"{shared_library_path}.dSYM"
+            print("Including debug information with wheel")
+            extra_objects.append(dsym_path)
 
 class CClientClean(clean):
 
@@ -343,7 +365,8 @@ setup(
                 'src/main/client/batch_operate.c',
                 'src/main/client/batch_remove.c',
                 'src/main/client/batch_apply.c',
-                'src/main/client/batch_read.c'
+                'src/main/client/batch_read.c',
+                'src/main/client/metrics.c'
             ],
 
             # Compile
@@ -399,8 +422,9 @@ setup(
     },
     packages=['aerospike_helpers', 'aerospike_helpers.operations', 'aerospike_helpers.batch',
               'aerospike_helpers.expressions',
-              'aerospike-stubs',
-              'aerospike'],
+              'aerospike',
+              'aerospike_helpers.metrics',
+              'aerospike-stubs'],
     cmdclass={
         'build': CClientBuild,
         'clean': CClientClean
