@@ -247,7 +247,7 @@ jobs:
 
     - name: Start Docker Engine
       if: ${{ inputs.run_tests }}
-      run: colima start --vm-type vz
+      run: colima start --network-address
 
     - uses: ./.github/actions/run-ee-server
       if: ${{ inputs.run_tests }}
