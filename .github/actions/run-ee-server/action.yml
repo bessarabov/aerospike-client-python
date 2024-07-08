@@ -1,5 +1,5 @@
 name: 'Run EE Server'
-description: 'Run EE server'
+description: 'Run EE server. Returns once server is ready. Only tested on Linux and macOS'
 inputs:
   # All inputs in composite actions are strings
   use-server-rc:
@@ -46,8 +46,11 @@ runs:
     run: docker run -d --name ${{ steps.get_container_name.outputs.container_name }} -p 3000-3002:3000-3002 $SERVER_IMAGE:${{ inputs.server-tag }}
     shell: bash
 
-  - name: Wait for EE server to start
-    run: sleep 5
+  - uses: ./.github/actions/wait-for-as-server-to-start
+    id: wait-for-server1
+    with:
+      container-name: aerospike
+      is-security-enabled: false
 
   - name: Create config folder to store configs in
     # Cannot create parent directories using docker cp
@@ -77,8 +80,18 @@ runs:
     run: docker run -tid -v $(pwd)/configs:/opt/aerospike/etc -p 3000:3000 --name ${{ steps.get_container_name.outputs.container_name }} $SERVER_IMAGE:${{ inputs.server-tag }} asd --config-file /opt/aerospike/etc/aerospike.conf
     shell: bash
 
-  - name: Wait for EE server to start
-    run: sleep 5
+  - uses: ./.github/actions/wait-for-as-server-to-start
+    id: wait-for-server2
+    with:
+      container-name: aerospike
+      is-security-enabled: true
+
+  # Enabling debug logging for workflow runs doesn't show container logs
+  # So we need this step for now
+  - if: ${{ !cancelled() && (steps.wait-for-server1.outcome == 'failure' || steps.wait-for-server2.outcome == 'failure') }}
+    name: Print logs to help debug why the server failed to start up
+    run: docker container logs aerospike
+    shell: bash
 
   - name: Create user in database for tests
     # Use default admin user to create another user for testing
